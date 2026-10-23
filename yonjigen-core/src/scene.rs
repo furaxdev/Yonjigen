@@ -84,7 +84,7 @@ impl Scene {
             name: name.into(),
             transform: Transform4::default(),
             shape,
-            color: [0xB0, 0x40, 0xFF],
+            color: [0xd8, 0xd8, 0xd8],
             visible: true,
         });
         id

@@ -99,11 +99,19 @@ impl ViewportState {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, scene: &Scene, selected: Option<u64>) {
+    /// `show_gizmos` masque les axes de repère et le texte de debug en mode
+    /// "Jeu" (comme la Game view de Unity, qui n'affiche pas les gizmos).
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        scene: &Scene,
+        selected: Option<u64>,
+        show_gizmos: bool,
+    ) {
         let rect = ui.available_rect_before_wrap();
         let response = ui.allocate_rect(rect, Sense::click_and_drag());
         let painter = ui.painter_at(rect);
-        painter.rect_filled(rect, 0.0, crate::theme::BG_DARK);
+        painter.rect_filled(rect, 0.0, crate::theme::BG_VIEWPORT);
 
         if response.dragged() {
             let delta: Vec2 = response.drag_delta();
@@ -116,41 +124,44 @@ impl ViewportState {
         }
 
         let center = rect.center();
-        // Axes de repère (x=rouge, y=vert, z=bleu néon) pour l'orientation.
-        let axis_len = 60.0;
-        for (dir, color) in [
-            (
-                yonjigen_core::vec3::Vec3::new(1.0, 0.0, 0.0),
-                Color32::from_rgb(0xff, 0x50, 0x50),
-            ),
-            (
-                yonjigen_core::vec3::Vec3::new(0.0, 1.0, 0.0),
-                Color32::from_rgb(0x50, 0xff, 0x80),
-            ),
-            (
-                yonjigen_core::vec3::Vec3::new(0.0, 0.0, 1.0),
-                crate::theme::NEON_BLUE,
-            ),
-        ] {
-            let p = self.rotate_orbit(dir);
-            let (x, y, _) = project_point_screen(p, 6.0);
-            painter.line_segment(
-                [
-                    center,
-                    Pos2::new(center.x + x * axis_len, center.y - y * axis_len),
-                ],
-                Stroke::new(1.5, color),
-            );
+
+        if show_gizmos {
+            // Petit gizmo d'axes façon Unity (coin de la Scene view), ici au centre.
+            let axis_len = 60.0;
+            for (dir, color) in [
+                (
+                    yonjigen_core::vec3::Vec3::new(1.0, 0.0, 0.0),
+                    Color32::from_rgb(0xff, 0x50, 0x50),
+                ),
+                (
+                    yonjigen_core::vec3::Vec3::new(0.0, 1.0, 0.0),
+                    Color32::from_rgb(0x50, 0xff, 0x80),
+                ),
+                (
+                    yonjigen_core::vec3::Vec3::new(0.0, 0.0, 1.0),
+                    Color32::from_rgb(0x50, 0x90, 0xff),
+                ),
+            ] {
+                let p = self.rotate_orbit(dir);
+                let (x, y, _) = project_point_screen(p, 6.0);
+                painter.line_segment(
+                    [
+                        center,
+                        Pos2::new(center.x + x * axis_len, center.y - y * axis_len),
+                    ],
+                    Stroke::new(1.5, color),
+                );
+            }
         }
 
         for entity in &scene.entities {
             if !entity.visible {
                 continue;
             }
-            let is_selected = selected == Some(entity.id);
+            let is_selected = show_gizmos && selected == Some(entity.id);
             let base_color = Color32::from_rgb(entity.color[0], entity.color[1], entity.color[2]);
             let base_color = if is_selected {
-                lerp_color(base_color, Color32::WHITE, 0.25)
+                crate::theme::SELECTED_OUTLINE
             } else {
                 base_color
             };
@@ -175,23 +186,24 @@ impl ViewportState {
             }
             if matches!(self.mode, RenderMode::Slice | RenderMode::Both) {
                 let sliced = slice_mesh(&world_mesh, self.w_slice);
-                let slice_color = crate::theme::NEON_BLUE;
                 let slice_color = if is_selected {
-                    lerp_color(slice_color, Color32::WHITE, 0.25)
+                    crate::theme::SELECTED_OUTLINE
                 } else {
-                    slice_color
+                    crate::theme::ACCENT_LIGHT
                 };
                 self.paint_mesh3(&painter, center, &sliced, slice_color, (w_min, w_max));
             }
         }
 
-        painter.text(
-            rect.left_top() + Vec2::new(8.0, 6.0),
-            egui::Align2::LEFT_TOP,
-            format!("w = {:.2}  |  mode: {:?}", self.w_slice, self.mode),
-            egui::FontId::monospace(12.0),
-            crate::theme::TEXT_MAIN,
-        );
+        if show_gizmos {
+            painter.text(
+                rect.left_top() + Vec2::new(8.0, 6.0),
+                egui::Align2::LEFT_TOP,
+                format!("w = {:.2}  |  mode: {:?}", self.w_slice, self.mode),
+                egui::FontId::proportional(11.0),
+                crate::theme::TEXT_MAIN,
+            );
+        }
     }
 }
 

@@ -1,12 +1,22 @@
-//! Thème sombre néon violet/bleu, esthétique pixel art, coins carrés.
+//! Thème sombre façon Unity : gris anthracite, accent bleu discret, UI dense.
 
 use egui::{Color32, CornerRadius, FontFamily, FontId, Stroke, TextStyle};
 
-pub const BG_DARK: Color32 = Color32::from_rgb(0x0b, 0x0b, 0x16);
-pub const BG_PANEL: Color32 = Color32::from_rgb(0x12, 0x12, 0x22);
-pub const NEON_PURPLE: Color32 = Color32::from_rgb(0xb0, 0x40, 0xff);
-pub const NEON_BLUE: Color32 = Color32::from_rgb(0x30, 0xd0, 0xff);
-pub const TEXT_MAIN: Color32 = Color32::from_rgb(0xe8, 0xe8, 0xff);
+/// Fond du viewport (équivalent de la Scene view de Unity).
+pub const BG_VIEWPORT: Color32 = Color32::from_rgb(0x30, 0x30, 0x30);
+/// Fond des panneaux (Hiérarchie, Inspecteur...), gris Unity standard.
+pub const BG_PANEL: Color32 = Color32::from_rgb(0x38, 0x38, 0x38);
+/// Barre de menu / onglets, légèrement plus sombre que les panneaux.
+pub const BG_HEADER: Color32 = Color32::from_rgb(0x2d, 0x2d, 0x2d);
+/// Texte principal : gris clair, pas blanc pur (comme Unity).
+pub const TEXT_MAIN: Color32 = Color32::from_rgb(0xc8, 0xc8, 0xc8);
+/// Bleu d'accentuation (sélection, focus), discret comme dans Unity.
+pub const ACCENT: Color32 = Color32::from_rgb(0x3a, 0x72, 0xc4);
+/// Bleu plus clair pour le survol / les axes.
+pub const ACCENT_LIGHT: Color32 = Color32::from_rgb(0x5a, 0x9b, 0xe0);
+/// Orange du contour de sélection, comme le highlight d'objet sélectionné
+/// dans la Scene view de Unity.
+pub const SELECTED_OUTLINE: Color32 = Color32::from_rgb(0xff, 0x8c, 0x1a);
 
 /// Cherche une police CJK du système (Noto CJK, Hiragino, Yu Gothic...).
 fn find_system_cjk_font() -> Option<Vec<u8>> {
@@ -40,11 +50,6 @@ pub fn setup(ctx: &egui::Context) {
             .entry(FontFamily::Proportional)
             .or_default()
             .push("cjk".to_owned());
-        fonts
-            .families
-            .entry(FontFamily::Monospace)
-            .or_default()
-            .push("cjk".to_owned());
     }
     ctx.set_fonts(fonts);
 
@@ -52,42 +57,54 @@ pub fn setup(ctx: &egui::Context) {
         style.visuals.dark_mode = true;
         style.visuals.panel_fill = BG_PANEL;
         style.visuals.window_fill = BG_PANEL;
-        style.visuals.extreme_bg_color = BG_DARK;
+        style.visuals.extreme_bg_color = BG_VIEWPORT;
+        style.visuals.faint_bg_color = BG_HEADER;
         style.visuals.override_text_color = Some(TEXT_MAIN);
+
         style.visuals.widgets.noninteractive.bg_fill = BG_PANEL;
-        style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(0x1a, 0x1a, 0x30);
-        style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(0x2a, 0x1a, 0x40);
-        style.visuals.widgets.hovered.bg_stroke = Stroke::new(1.5, NEON_BLUE);
-        style.visuals.widgets.active.bg_fill = Color32::from_rgb(0x3a, 0x1a, 0x50);
-        style.visuals.widgets.active.bg_stroke = Stroke::new(1.5, NEON_PURPLE);
-        style.visuals.selection.bg_fill = NEON_PURPLE.gamma_multiply(0.5);
-        style.visuals.hyperlink_color = NEON_BLUE;
+        style.visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_MAIN);
+        style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(0x45, 0x45, 0x45);
+        style.visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, TEXT_MAIN);
+        style.visuals.widgets.hovered.bg_fill = Color32::from_rgb(0x50, 0x50, 0x50);
+        style.visuals.widgets.hovered.bg_stroke =
+            Stroke::new(1.0, Color32::from_rgb(0x6a, 0x6a, 0x6a));
+        style.visuals.widgets.active.bg_fill = ACCENT;
+        style.visuals.widgets.active.bg_stroke = Stroke::new(1.0, ACCENT_LIGHT);
+        style.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
+        style.visuals.selection.stroke = Stroke::new(1.0, ACCENT_LIGHT);
+        style.visuals.hyperlink_color = ACCENT_LIGHT;
 
-        // Coins carrés partout : zéro arrondi, esthétique 8-bit.
-        let zero = CornerRadius::ZERO;
-        style.visuals.widgets.noninteractive.corner_radius = zero;
-        style.visuals.widgets.inactive.corner_radius = zero;
-        style.visuals.widgets.hovered.corner_radius = zero;
-        style.visuals.widgets.active.corner_radius = zero;
-        style.visuals.widgets.open.corner_radius = zero;
-        style.visuals.window_corner_radius = zero;
-        style.visuals.menu_corner_radius = zero;
+        // Unity arrondit très légèrement ses boutons/panneaux (2px), pas de coins
+        // carrés façon pixel art.
+        let subtle = CornerRadius::same(2);
+        style.visuals.widgets.noninteractive.corner_radius = subtle;
+        style.visuals.widgets.inactive.corner_radius = subtle;
+        style.visuals.widgets.hovered.corner_radius = subtle;
+        style.visuals.widgets.active.corner_radius = subtle;
+        style.visuals.widgets.open.corner_radius = subtle;
+        style.visuals.window_corner_radius = subtle;
+        style.visuals.menu_corner_radius = subtle;
 
+        // Police système proportionnelle (sans-serif), comme l'UI Unity -
+        // le monospace reste réservé à l'éditeur de code (étape 3).
+        style.text_styles.insert(
+            TextStyle::Heading,
+            FontId::new(15.0, FontFamily::Proportional),
+        );
         style
             .text_styles
-            .insert(TextStyle::Heading, FontId::new(18.0, FontFamily::Monospace));
-        style
-            .text_styles
-            .insert(TextStyle::Body, FontId::new(14.0, FontFamily::Monospace));
-        style
-            .text_styles
-            .insert(TextStyle::Button, FontId::new(14.0, FontFamily::Monospace));
-        style
-            .text_styles
-            .insert(TextStyle::Small, FontId::new(11.0, FontFamily::Monospace));
+            .insert(TextStyle::Body, FontId::new(12.5, FontFamily::Proportional));
+        style.text_styles.insert(
+            TextStyle::Button,
+            FontId::new(12.5, FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            TextStyle::Small,
+            FontId::new(10.5, FontFamily::Proportional),
+        );
         style.text_styles.insert(
             TextStyle::Monospace,
-            FontId::new(14.0, FontFamily::Monospace),
+            FontId::new(12.5, FontFamily::Monospace),
         );
     });
 }
