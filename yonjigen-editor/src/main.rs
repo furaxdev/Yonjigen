@@ -1,4 +1,5 @@
 mod app;
+mod code_editor;
 mod theme;
 mod viewport;
 

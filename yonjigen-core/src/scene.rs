@@ -56,6 +56,9 @@ pub struct Entity {
     pub shape: ShapeKind,
     pub color: [u8; 3],
     pub visible: bool,
+    /// Composant Script : code source Lua exécuté chaque frame pendant Play.
+    #[serde(default)]
+    pub script: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,6 +89,7 @@ impl Scene {
             shape,
             color: [0xd8, 0xd8, 0xd8],
             visible: true,
+            script: None,
         });
         id
     }

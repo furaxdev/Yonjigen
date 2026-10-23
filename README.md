@@ -3,20 +3,33 @@
 Moteur de jeu + éditeur **4D** (x, y, z, w) en Rust — l'équivalent d'Unity mais avec
 une quatrième dimension spatiale.
 
-## État actuel (étape 1 : MVP)
+## État actuel (étapes 1 à 3)
 
 - Maths 4D complètes : `Vec4`, `Mat5` (transformations homogènes), rotations sur
   les 6 plans (XY, XZ, XW, YZ, YW, ZW), `Transform4`.
-- Primitive **tesseract** avec sommets/arêtes/faces.
+- Primitives : tesseract (avec faces, pour la coupe), 5-cell, 16-cell, 24-cell,
+  hypersphère, duoprisme.
 - Pipeline de rendu : projection perspective 4D→3D→2D, et coupe (slice) par
   l'hyperplan `w = c`, réglable en temps réel.
-- Éditeur (`eframe`/`egui`) : viewport avec orbite souris + zoom molette,
-  slider de coupe `w`, bascule Projection / Coupe / Les deux, play/pause avec
-  vitesse de rotation par plan, hiérarchie de scène, inspecteur de composants.
-- Thème sombre néon (violet/bleu), coins carrés, police monospace, logo
-  pixel-art "四次元" (police CJK système si disponible, sinon repli "YONJIGEN").
-- Tests unitaires sur les maths 4D (rotations préservent les longueurs, coupe
-  d'un tesseract à `w = 0` = cube, etc.).
+- Scène/ECS léger avec sauvegarde/chargement JSON (`.yonjigen`).
+- Scripting Lua (`mlua`, Lua 5.4 vendored) : composant Script par entité,
+  exécuté chaque frame pendant Play via une API minimale (`get_position`,
+  `set_position`, `get_rotation`, `set_rotation`, `rotate`, `log`, `dt`,
+  constantes `PLANE_XY`..`PLANE_ZW`).
+- Éditeur (`eframe`/`egui`) façon **Unity** : barre de menu + toolbar séparées,
+  Hiérarchie (recherche, création, renommage par double-clic, actions au
+  clic-droit), Inspecteur à sections repliables, onglets Scene / Jeu / Code,
+  Project / Console en bas à gauche.
+- Éditeur de code Lua intégré : coloration syntaxique, numéros de ligne,
+  onglets de scripts ouverts, menu d'autocomplétion de l'API, bouton
+  Exécuter, console de logs/erreurs reliée à l'exécution en direct pendant
+  Play.
+- Thème sombre gris anthracite, accent bleu discret, contour de sélection
+  orange, coins arrondis, espacement généreux ; police Inter embarquée dans
+  le binaire (cohérente sur tous les OS), repli CJK système pour "四次元".
+- Tests unitaires : maths 4D (rotations préservent les longueurs, coupe d'un
+  tesseract à `w = 0` = cube...), scène (ajout/duplication/JSON), scripting
+  Lua (lecture/écriture de transform, `dt`, logs, erreurs de syntaxe).
 
 ## Structure du workspace
 
@@ -64,14 +77,23 @@ cargo fmt --all --check
   tesseract pour l'instant (nécessaire à l'algorithme de coupe générique par
   faces) ; les autres primitives (5-cell, 16-cell, 24-cell, hypersphère,
   duoprisme) n'ont pour l'instant que sommets/arêtes et s'affichent donc
-  seulement en mode Projection. Le mode Coupe sera étendu à ces formes à
-  l'étape 2.
+  seulement en mode Projection. Le mode Coupe sera étendu à ces formes plus
+  tard si besoin.
 - Sauvegarde de scène : JSON (`serde_json`), extension `.yonjigen`.
-- Scripting Lua (`mlua`, feature `vendored`) : prévu à l'étape 3, pas encore
-  intégré.
+- Scripting Lua : la VM Lua est recréée à chaque frame (pas de VM persistante)
+  — plus simple à implémenter en toute sécurité vis-à-vis de l'emprunt mutable
+  de la scène, et ça permet l'édition à chaud du script sans redémarrage. Les
+  variables locales Lua ne survivent donc pas d'une frame à l'autre ; seul
+  l'état du `Transform4` (exposé via l'API) est persistant.
+- Éditeur de code : autocomplétion simplifiée (menu listant les signatures de
+  l'API, insertion en fin de script) plutôt qu'un popup contextuel au niveau
+  du curseur ; coloration syntaxique par un tokenizer ligne par ligne (pas de
+  gestion des chaînes multi-lignes `[[...]]`).
+- Police embarquée : Inter (SIL OFL 1.1, voir
+  `yonjigen-editor/assets/fonts/Inter-OFL-LICENSE.txt`), choisie pour un rendu
+  identique sur tous les OS sans dépendre des polices système.
 
 ## Roadmap
 
-Voir les étapes 2 à 7 du plan : formes supplémentaires + sauvegarde, scripting
-Lua + API moteur, modélisateur 4D, éditeurs pixel art / images, physique 4D +
-export standalone, packaging multi-OS + CI + release.
+Voir les étapes 4 à 7 du plan : modélisateur 4D, éditeurs pixel art / images,
+physique 4D + export standalone, packaging multi-OS + CI + release.

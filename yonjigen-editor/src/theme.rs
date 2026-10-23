@@ -38,8 +38,28 @@ fn find_system_cjk_font() -> Option<Vec<u8>> {
     None
 }
 
+/// Police principale de l'UI : Inter (SIL OFL 1.1), embarquée dans le binaire
+/// pour un rendu identique sur Linux/Windows/macOS sans dépendre des polices
+/// système. Voir `assets/fonts/Inter-OFL-LICENSE.txt`.
+const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.otf");
+const INTER_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Inter-SemiBold.otf");
+
 pub fn setup(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
+
+    fonts.font_data.insert(
+        "inter".to_owned(),
+        std::sync::Arc::new(egui::FontData::from_static(INTER_REGULAR)),
+    );
+    fonts.font_data.insert(
+        "inter-semibold".to_owned(),
+        std::sync::Arc::new(egui::FontData::from_static(INTER_SEMIBOLD)),
+    );
+
+    // Inter en priorité, la police CJK système en repli pour "四次元"
+    // (Inter ne couvre pas les idéogrammes).
+    let proportional = fonts.families.entry(FontFamily::Proportional).or_default();
+    proportional.insert(0, "inter".to_owned());
     if let Some(bytes) = find_system_cjk_font() {
         fonts.font_data.insert(
             "cjk".to_owned(),
@@ -51,6 +71,12 @@ pub fn setup(ctx: &egui::Context) {
             .or_default()
             .push("cjk".to_owned());
     }
+    fonts
+        .families
+        .entry(FontFamily::Name("heading".into()))
+        .or_default()
+        .insert(0, "inter-semibold".to_owned());
+
     ctx.set_fonts(fonts);
 
     ctx.all_styles_mut(|style| {
@@ -97,7 +123,7 @@ pub fn setup(ctx: &egui::Context) {
         // le monospace reste réservé à l'éditeur de code (étape 3).
         style.text_styles.insert(
             TextStyle::Heading,
-            FontId::new(15.0, FontFamily::Proportional),
+            FontId::new(15.0, FontFamily::Name("heading".into())),
         );
         style
             .text_styles

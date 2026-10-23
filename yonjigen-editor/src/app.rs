@@ -4,10 +4,13 @@ use egui::RichText;
 use yonjigen_core::math4::RotationPlane;
 use yonjigen_core::scene::{Scene, ShapeKind};
 
+const DEFAULT_SCRIPT: &str = "-- Script Lua exécuté chaque frame pendant Play.\n-- API : get_position/set_position, get_rotation/set_rotation,\n-- rotate(plane, degrees), log(msg), dt, PLANE_XY..PLANE_ZW.\nrotate(PLANE_ZW, 45 * dt)\n";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CentralTab {
     Scene,
     Game,
+    Code,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,6 +30,9 @@ pub struct YonjigenApp {
     central_tab: CentralTab,
     bottom_tab: BottomTab,
     hierarchy_filter: String,
+    /// Entités dont le script est ouvert dans l'éditeur de code (onglets).
+    code_tabs: Vec<u64>,
+    code_active: Option<u64>,
 }
 
 impl Default for YonjigenApp {
@@ -44,6 +50,8 @@ impl Default for YonjigenApp {
             central_tab: CentralTab::Scene,
             bottom_tab: BottomTab::Console,
             hierarchy_filter: String::new(),
+            code_tabs: Vec::new(),
+            code_active: None,
         }
     }
 }
@@ -58,6 +66,20 @@ impl YonjigenApp {
         let msg = msg.into();
         self.log.push(msg.clone());
         self.status = msg;
+    }
+
+    /// Ouvre (ou crée) le script d'une entité dans l'onglet Code.
+    fn open_script_editor(&mut self, id: u64) {
+        if let Some(entity) = self.scene.find_mut(id)
+            && entity.script.is_none()
+        {
+            entity.script = Some(DEFAULT_SCRIPT.to_string());
+        }
+        if !self.code_tabs.contains(&id) {
+            self.code_tabs.push(id);
+        }
+        self.code_active = Some(id);
+        self.central_tab = CentralTab::Code;
     }
 
     /// Barre de menu façon Unity : fine, plate, texte seul.
@@ -302,6 +324,7 @@ impl YonjigenApp {
                             let mut start_rename = false;
                             let mut duplicate_now = false;
                             let mut delete_now = false;
+                            let mut open_script_now = false;
 
                             if let Some((rid, name)) = &mut self.renaming
                                 && *rid == id
@@ -329,6 +352,10 @@ impl YonjigenApp {
                                         duplicate_now = true;
                                         ui.close();
                                     }
+                                    if ui.button("Ouvrir le script").clicked() {
+                                        open_script_now = true;
+                                        ui.close();
+                                    }
                                     if ui.button("Supprimer").clicked() {
                                         delete_now = true;
                                         ui.close();
@@ -347,6 +374,9 @@ impl YonjigenApp {
                             }
                             if duplicate_now {
                                 self.selected = self.scene.duplicate(id);
+                            }
+                            if open_script_now {
+                                self.open_script_editor(id);
                             }
                             if delete_now {
                                 self.scene.remove(id);
@@ -483,6 +513,33 @@ impl YonjigenApp {
                             }
                         });
                     });
+
+                let mut open_script = false;
+                egui::CollapsingHeader::new("Script")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        if entity.script.is_some() {
+                            ui.label(RichText::new("Script Lua attaché.").color(theme::TEXT_MAIN));
+                            if ui.button("Ouvrir l'éditeur de code").clicked() {
+                                open_script = true;
+                            }
+                            if ui.button("Retirer le script").clicked() {
+                                entity.script = None;
+                            }
+                        } else {
+                            ui.label(
+                                RichText::new("Aucun script attaché.")
+                                    .color(theme::TEXT_MAIN)
+                                    .small(),
+                            );
+                            if ui.button("+ Ajouter un script").clicked() {
+                                open_script = true;
+                            }
+                        }
+                    });
+                if open_script {
+                    self.open_script_editor(id);
+                }
             });
     }
 
@@ -511,6 +568,77 @@ impl YonjigenApp {
             }
         });
     }
+
+    /// Onglet Code : scripts ouverts, éditeur Lua, console de logs/erreurs.
+    fn code_panel(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            let tabs = self.code_tabs.clone();
+            for id in tabs {
+                let Some(name) = self
+                    .scene
+                    .entities
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| e.name.clone())
+                else {
+                    self.code_tabs.retain(|t| *t != id);
+                    continue;
+                };
+                let is_active = self.code_active == Some(id);
+                if ui.selectable_label(is_active, &name).clicked() {
+                    self.code_active = Some(id);
+                }
+                if ui.small_button("×").clicked() {
+                    self.code_tabs.retain(|t| *t != id);
+                    if self.code_active == Some(id) {
+                        self.code_active = self.code_tabs.first().copied();
+                    }
+                }
+            }
+        });
+        ui.separator();
+
+        let Some(id) = self.code_active else {
+            ui.label(
+                RichText::new("Aucun script ouvert. Clic droit sur une entité → Ouvrir le script.")
+                    .color(theme::TEXT_MAIN),
+            );
+            return;
+        };
+        let Some(entity) = self.scene.find_mut(id) else {
+            self.code_active = None;
+            return;
+        };
+        let script = entity
+            .script
+            .get_or_insert_with(|| DEFAULT_SCRIPT.to_string());
+        let run_clicked = crate::code_editor::show(ui, script);
+        let source = script.clone();
+
+        if run_clicked {
+            let mut messages = Vec::new();
+            let result = yonjigen_core::script::run_frame(
+                &mut entity.transform,
+                0.0,
+                &source,
+                &mut messages,
+            );
+            for m in messages {
+                self.viewport
+                    .script_log
+                    .push(format!("[{}] {m}", entity.name));
+            }
+            if let Err(e) = result {
+                self.viewport
+                    .script_log
+                    .push(format!("[{}] Erreur : {e}", entity.name));
+            }
+        }
+
+        ui.separator();
+        ui.label(RichText::new("Console").strong());
+        crate::code_editor::show_console(ui, &self.viewport.script_log);
+    }
 }
 
 impl eframe::App for YonjigenApp {
@@ -538,8 +666,13 @@ impl eframe::App for YonjigenApp {
                     ui.horizontal(|ui| {
                         ui.selectable_value(&mut self.central_tab, CentralTab::Scene, "Scene");
                         ui.selectable_value(&mut self.central_tab, CentralTab::Game, "Jeu");
+                        ui.selectable_value(&mut self.central_tab, CentralTab::Code, "Code");
                     });
                     ui.separator();
+                    if self.central_tab == CentralTab::Code {
+                        self.code_panel(ui);
+                        return;
+                    }
                     if self.central_tab == CentralTab::Scene {
                         self.viewport_controls(ui);
                         ui.separator();

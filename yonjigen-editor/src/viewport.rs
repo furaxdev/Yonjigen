@@ -1,7 +1,6 @@
 //! Panneau viewport 4D : orbite, zoom, slider w, modes Projection/Coupe/Les deux.
 
 use egui::{Color32, Pos2, Sense, Stroke, Vec2};
-use yonjigen_core::math4::RotationPlane;
 use yonjigen_core::render::{Mesh3, project_mesh_perspective, project_point_screen, slice_mesh};
 use yonjigen_core::scene::Scene;
 
@@ -22,7 +21,12 @@ pub struct ViewportState {
     pub playing: bool,
     /// Vitesse de rotation (rad/s) pour chacun des 6 plans.
     pub rotation_speeds: [f64; 6],
+    /// Journal des scripts Lua (logs + erreurs), consommé par la console de
+    /// l'éditeur de code. Borné pour ne pas grossir indéfiniment.
+    pub script_log: Vec<String>,
 }
+
+const SCRIPT_LOG_LIMIT: usize = 300;
 
 impl Default for ViewportState {
     fn default() -> Self {
@@ -35,6 +39,7 @@ impl Default for ViewportState {
             camera_w: 3.0,
             playing: true,
             rotation_speeds: [0.0, 0.0, 0.3, 0.0, 0.5, 0.2],
+            script_log: Vec::new(),
         }
     }
 }
@@ -44,12 +49,35 @@ impl ViewportState {
         if !self.playing {
             return;
         }
-        let Some(id) = selected else { return };
-        if let Some(entity) = scene.find_mut(id) {
-            for (i, plane) in RotationPlane::ALL.iter().enumerate() {
-                let _ = plane;
+        if let Some(id) = selected
+            && let Some(entity) = scene.find_mut(id)
+        {
+            for i in 0..6 {
                 entity.transform.rotation[i] += self.rotation_speeds[i] * dt as f64;
             }
+        }
+        for entity in &mut scene.entities {
+            let Some(source) = entity.script.clone() else {
+                continue;
+            };
+            let mut messages = Vec::new();
+            let outcome = yonjigen_core::script::run_frame(
+                &mut entity.transform,
+                dt as f64,
+                &source,
+                &mut messages,
+            );
+            for msg in messages {
+                self.script_log.push(format!("[{}] {msg}", entity.name));
+            }
+            if let Err(e) = outcome {
+                self.script_log
+                    .push(format!("[{}] Erreur : {e}", entity.name));
+            }
+        }
+        if self.script_log.len() > SCRIPT_LOG_LIMIT {
+            let overflow = self.script_log.len() - SCRIPT_LOG_LIMIT;
+            self.script_log.drain(0..overflow);
         }
     }
 
