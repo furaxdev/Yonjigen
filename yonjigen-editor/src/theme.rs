@@ -1,6 +1,6 @@
 //! Thème sombre façon Unity : gris anthracite, accent bleu discret, UI dense.
 
-use egui::{Color32, CornerRadius, FontFamily, FontId, Stroke, TextStyle};
+use egui::{Color32, CornerRadius, FontFamily, FontId, Margin, Stroke, TextStyle, Vec2};
 
 /// Fond du viewport (équivalent de la Scene view de Unity).
 pub const BG_VIEWPORT: Color32 = Color32::from_rgb(0x30, 0x30, 0x30);
@@ -74,16 +74,24 @@ pub fn setup(ctx: &egui::Context) {
         style.visuals.selection.stroke = Stroke::new(1.0, ACCENT_LIGHT);
         style.visuals.hyperlink_color = ACCENT_LIGHT;
 
-        // Unity arrondit très légèrement ses boutons/panneaux (2px), pas de coins
-        // carrés façon pixel art.
-        let subtle = CornerRadius::same(2);
-        style.visuals.widgets.noninteractive.corner_radius = subtle;
-        style.visuals.widgets.inactive.corner_radius = subtle;
-        style.visuals.widgets.hovered.corner_radius = subtle;
-        style.visuals.widgets.active.corner_radius = subtle;
-        style.visuals.widgets.open.corner_radius = subtle;
-        style.visuals.window_corner_radius = subtle;
-        style.visuals.menu_corner_radius = subtle;
+        // Coins bien arrondis partout, plus doux que le style Unity d'origine.
+        let rounded = CornerRadius::same(8);
+        style.visuals.widgets.noninteractive.corner_radius = rounded;
+        style.visuals.widgets.inactive.corner_radius = rounded;
+        style.visuals.widgets.hovered.corner_radius = rounded;
+        style.visuals.widgets.active.corner_radius = rounded;
+        style.visuals.widgets.open.corner_radius = rounded;
+        style.visuals.window_corner_radius = rounded;
+        style.visuals.menu_corner_radius = CornerRadius::same(10);
+
+        // Espacement généreux : UI plus aérée, moins dense.
+        style.spacing.item_spacing = Vec2::new(10.0, 10.0);
+        style.spacing.button_padding = Vec2::new(10.0, 6.0);
+        style.spacing.menu_margin = Margin::same(8);
+        style.spacing.window_margin = Margin::same(12);
+        style.spacing.indent = 20.0;
+        style.spacing.interact_size.y = 26.0;
+        style.spacing.scroll.bar_width = 10.0;
 
         // Police système proportionnelle (sans-serif), comme l'UI Unity -
         // le monospace reste réservé à l'éditeur de code (étape 3).

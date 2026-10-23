@@ -66,7 +66,7 @@ impl YonjigenApp {
             .frame(
                 egui::Frame::new()
                     .fill(theme::BG_HEADER)
-                    .inner_margin(egui::Margin::symmetric(6, 3)),
+                    .inner_margin(egui::Margin::symmetric(12, 8)),
             )
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -156,7 +156,7 @@ impl YonjigenApp {
             .frame(
                 egui::Frame::new()
                     .fill(theme::BG_PANEL)
-                    .inner_margin(egui::Margin::symmetric(8, 4)),
+                    .inner_margin(egui::Margin::symmetric(14, 10)),
             )
             .show(ui, |ui| {
                 ui.columns(3, |cols| {
