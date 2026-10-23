@@ -1,6 +1,6 @@
 use crate::theme;
 use crate::viewport::{RenderMode, ViewportState};
-use egui::{Color32, RichText};
+use egui::RichText;
 use yonjigen_core::math4::RotationPlane;
 use yonjigen_core::scene::{Scene, ShapeKind};
 
@@ -206,11 +206,21 @@ impl YonjigenApp {
         egui::Panel::left("hierarchy")
             .resizable(true)
             .default_size(240.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_PANEL)
+                    .inner_margin(egui::Margin::symmetric(12, 12)),
+            )
             .show(ui, |ui| {
                 // Partie basse : Project / Console, comme le bas de l'éditeur Unity.
                 egui::Panel::bottom("bottom_tabs")
                     .resizable(true)
                     .default_size(180.0)
+                    .frame(
+                        egui::Frame::new()
+                            .fill(theme::BG_PANEL)
+                            .inner_margin(egui::Margin::symmetric(4, 10)),
+                    )
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.selectable_value(
@@ -353,6 +363,11 @@ impl YonjigenApp {
         egui::Panel::right("inspector")
             .resizable(true)
             .default_size(300.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_PANEL)
+                    .inner_margin(egui::Margin::symmetric(14, 12)),
+            )
             .show(ui, |ui| {
                 ui.heading("Inspector");
                 ui.separator();
@@ -513,7 +528,11 @@ impl eframe::App for YonjigenApp {
         self.inspector_panel(ui);
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(Color32::BLACK))
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_PANEL)
+                    .inner_margin(egui::Margin::same(12)),
+            )
             .show(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
